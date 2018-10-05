@@ -8,13 +8,6 @@ Block::Block()
 	data = new vector<double>();
 }
 
-Block::Block(const Block& other)
-{
-	this->energy = other.energy;
-	this->order = other.order;
-	this->data = new vector<double>(*other.data);
-}
-
 Block::~Block()
 {
 	delete data;
@@ -35,6 +28,16 @@ void Block::computeProperties(cv::Mat& src, int offsetX, int offsetY, int zoneMa
 		}
 	}
 	this->order = order;
+}
+
+void Block::saveToFile(ofstream& file)
+{
+	file.write((char*)&order, sizeof(int));
+	for (int i = 0; i < data->size(); ++i)
+	{
+		char value = (char)(data->at(i) * 255);
+		file.write((char*)&value, sizeof(char));
+	}
 }
 
 double Block::GetEnergy() const 

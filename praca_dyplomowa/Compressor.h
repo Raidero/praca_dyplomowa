@@ -13,6 +13,7 @@ class Compressor
 	public:
 		Compressor();
 		~Compressor();
+		void compressAndSave(cv::Mat & src, string fileName);
 		void transform(cv::Mat & src);
 		void inverseTransform(cv::Mat & src);
 		void horizontalTransformation(cv::Mat & src, int level, bool inverse = false);
@@ -21,12 +22,14 @@ class Compressor
 		void setBlockSize(int blockSize);
 		void setCompressionLevel(int compressionLevel);
 		double GetDataEnergy();
+		void createFileAndSaveInitialInformation(cv::Mat & src, string filename);
+		void saveData(string fileName);
 		void computePropertiesForAllBlocks(cv::Mat & src);
 	private:
 		int walvetSeries;
 		int blockSize;
 		int compressionLevel;
-		vector<Block>* blockData;
+		vector<Block*>* blockData;
 
 		void forwardWalvetTransform97(vector<double>& values);
 		void inverseWalvetTranform97(vector<double>& values);

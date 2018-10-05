@@ -6,7 +6,8 @@ Compressor::Compressor()
 {
 	walvetSeries = 2;
 	blockSize = 32;
-	blockData = new vector<Block>();
+	blockData = new vector<Block*>();
+	compressionLevel = 75;
 }
 
 
@@ -15,12 +16,26 @@ Compressor::~Compressor()
 	delete blockData;
 }
 
+void Compressor::compressAndSave(cv::Mat& src, string fileName)
+{
+	transform(src);
+	computePropertiesForAllBlocks(src);
+
+	sortBlocksByEnergy();
+	reduceNumberOfBlocksByLevelOfCompression();
+
+	sortBlocksByOrder();
+
+	createFileAndSaveInitialInformation(src, fileName);
+	saveData(fileName);
+}
+
 void Compressor::transform(cv::Mat& src)
 {
 	for (int level = 0; level < walvetSeries; ++level)
 	{
 		horizontalTransformation(src, level);
-		//verticalTransformation(src, level);
+		verticalTransformation(src, level);
 	}
 }
 
@@ -233,8 +248,8 @@ void Compressor::computePropertiesForAllBlocks(cv::Mat& src)
 	{
 		for (int j = 0; j < (src.cols >> walvetSeries); j += blockSize)
 		{
-			Block block;
-			block.computeProperties(src, i, j, (src.rows >> walvetSeries), (src.cols >> walvetSeries), blockSize, blockData->size());
+			Block* block = new Block();
+			block->computeProperties(src, i, j, (src.rows >> walvetSeries), (src.cols >> walvetSeries), blockSize, blockData->size());
 			blockData->push_back(block);
 			//std::cout << blockEnergy(src, i, j, (src.rows >> LEVEL), (src.cols >> LEVEL), blockSize) << '\n';
 		}
@@ -251,8 +266,8 @@ void Compressor::computePropertiesForAllBlocks(cv::Mat& src)
 			{
 				for (int j = 0; j < zoneHeight; j += blockSize)
 				{
-					Block block;
-					block.computeProperties(src, i + offsetX, j + offsetY, offsetX + zoneWidth, offsetY + zoneHeight, blockSize, blockData->size());
+					Block* block = new Block();
+					block->computeProperties(src, i + offsetX, j + offsetY, offsetX + zoneWidth, offsetY + zoneHeight, blockSize, blockData->size());
 					blockData->push_back(block);
 					//std::cout << blockEnergy(src, i + offsetX, j + offsetY, offsetX + rows, offsetY + cols, blockSize) << '\n';
 				}
@@ -263,31 +278,57 @@ void Compressor::computePropertiesForAllBlocks(cv::Mat& src)
 
 void Compressor::reduceNumberOfBlocksByLevelOfCompression()
 {
-	const double percentageOfRemainingBlocks = 1.0 - ((double)compressionLevel * 0.01);
-	blockData->resize(blockData->size() * percentageOfRemainingBlocks);
+	double percentageOfRemainingBlocks = 1.0 - ((double)compressionLevel * 0.01);
+	blockData->resize((size_t)(blockData->size()*percentageOfRemainingBlocks));
 }
 
 void Compressor::sortBlocksByEnergy()
 {
 	sort(blockData->begin(), blockData->end(),
-		[](const Block& b1, const Block& b2) -> bool { return b1.GetEnergy() > b2.GetEnergy(); });
+		[](const Block* b1, const Block* b2) -> bool { return b1->GetEnergy() > b2->GetEnergy(); });
 }
 
 void Compressor::sortBlocksByOrder()
 {
 	sort(blockData->begin(), blockData->end(),
-		[](const Block& b1, const Block& b2) -> bool { return b1.GetOrder() > b2.GetOrder(); });
+		[](const Block* b1, const Block* b2) -> bool { return b1->GetOrder() > b2->GetOrder(); });
 }
 #include <iostream>
+#include <fstream>
 double Compressor::GetDataEnergy()
 {
 	double sum = 0;
 	for (int i = 0; i < blockData->size(); ++i)
 	{
 		//std::cout << blockData->at(i).GetEnergy() << endl;
-		sum += blockData->at(i).GetEnergy();
+		sum += blockData->at(i)->GetEnergy();
 	}
 	return sum;
+}
+
+void Compressor::createFileAndSaveInitialInformation(cv::Mat& src, string fileName)
+{
+	ofstream file(fileName, ofstream::out | ofstream::binary);
+	// schema
+	// width 8 bit
+	// height 8 bit
+	// block size 8 bit
+	// walvet series 8 bit
+	file.write((char*)&src.rows, 4);
+	file.write((char*)&src.cols, 4);
+	file.write((char*)&blockSize, 4);
+	file.write((char*)&walvetSeries, 4);
+	file.close();
+}
+
+void Compressor::saveData(string fileName)
+{
+	ofstream file(fileName, ofstream::out | ofstream::binary);
+	for (int i = 0; i < blockData->size(); ++i)
+	{
+		blockData->at(i)->saveToFile(file);
+	}
+	file.close();
 }
 
 
