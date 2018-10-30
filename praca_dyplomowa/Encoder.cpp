@@ -39,7 +39,7 @@ void Encoder::compressAndSave(cv::Mat& src, string fileName)
 	{
 		transform(channels[i]);
 		normalizeValues(channels[i], i);
-		computePropertiesForAllBlocks(channels[i]);
+		computePropertiesForAllBlocks(channels[i], -minValue[i] / (maxValue[i] - minValue[i]));
 	}
 	merge(channels, src.channels(), src);
 	sortBlocksByEnergy();
@@ -130,13 +130,14 @@ void Encoder::setCompressionLevel(int compressionLevel)
 	}
 }
 
-void Encoder::computePropertiesForAllBlocks(cv::Mat& src)
+void Encoder::computePropertiesForAllBlocks(cv::Mat& src, double defaultValue)
 {
 	for (int i = 0; i < (src.rows >> walvetSeries); i += blockSize)
 	{
 		for (int j = 0; j < (src.cols >> walvetSeries); j += blockSize)
 		{
 			Block* block = new Block();
+			block->setDefaultValue(defaultValue);
 			block->computeProperties(src, i, j, (src.rows >> walvetSeries), (src.cols >> walvetSeries), blockSize, (int)blockData->size());
 			blockData->push_back(block);
 		}
@@ -154,6 +155,7 @@ void Encoder::computePropertiesForAllBlocks(cv::Mat& src)
 				for (int j = 0; j < zoneHeight; j += blockSize)
 				{
 					Block* block = new Block();
+					block->setDefaultValue(defaultValue);
 					block->computeProperties(src, i + offsetX, j + offsetY, offsetX + zoneWidth, offsetY + zoneHeight, blockSize, (int)blockData->size());
 					blockData->push_back(block);
 				}

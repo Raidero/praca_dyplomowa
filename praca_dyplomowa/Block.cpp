@@ -33,7 +33,7 @@ void Block::computeProperties(cv::Mat& src, int offsetX, int offsetY, int zoneMa
 			if (i + offsetX < zoneMaxX && j + offsetY < zoneMaxY)
 			{
 				const double value = src.at<double>(i + offsetX, j + offsetY);
-				energy += value*value;
+				energy += (value - defaultValue)*(value - defaultValue);
 				data->push_back(value);
 			}
 			else if (i + offsetX == zoneMaxX)
