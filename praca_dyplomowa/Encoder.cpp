@@ -4,10 +4,10 @@
 
 Encoder::Encoder()
 {
-	walvetSeries = 5;
-	blockSize = 16;
+	walvetSeries = 1;
+	blockSize = 32;
 	blockData = new vector<Block*>();
-	compressionLevel = 80;
+	compressionLevel = 50;
 	minValue = nullptr;
 	maxValue = nullptr;
 }
@@ -31,17 +31,17 @@ void Encoder::compressAndSave(cv::Mat& src, string fileName)
 	cv::Mat_<double>* channels = new cv::Mat_<double>[src.channels()];
 	minValue = new double[src.channels()];
 	maxValue = new double[src.channels()];
-	split(src, channels);
 	
+	convertRGBtoYCbCr(src);
+	split(src, channels);
+
 	for(int i = 0; i < src.channels(); ++i)
 	{
 		transform(channels[i]);
-		//normalizeValues(channels[i], i);
+		normalizeValues(channels[i], i);
 		computePropertiesForAllBlocks(channels[i]);
 	}
 	merge(channels, src.channels(), src);
-	cv::imshow("Dyplom", src);
-	cv::waitKey();
 	sortBlocksByEnergy();
 	reduceNumberOfBlocksByLevelOfCompression();
 
@@ -108,7 +108,7 @@ void Encoder::setWalvetSeries(int walvetSeries)
 
 void Encoder::setBlockSize(int blockSize)
 {
-	if (blockSize > 1)
+	if (blockSize > 0)
 	{
 		this->blockSize = blockSize;
 	}
@@ -234,4 +234,20 @@ void Encoder::normalizeValues(cv::Mat& src, int channel)
 	cv::minMaxLoc(src, &minValue[channel], &maxValue[channel]);
 	src -= minValue[channel];
 	src /= (maxValue[channel] - minValue[channel]);
+}
+
+void Encoder::convertRGBtoYCbCr(cv::Mat& src)
+{
+	if (src.channels() == 3)
+	{
+		cv::Mat bgr[3];
+		cv::Mat ycbcr[3];
+		cv::split(src, bgr);
+
+		ycbcr[0] = 0.299 * bgr[2] + 0.587 * bgr[1] + 0.114 * bgr[0];
+		ycbcr[1] = (bgr[0] - ycbcr[0]) * 0.564 + 0.5;
+		ycbcr[2] = (bgr[2] - ycbcr[0]) * 0.713 + 0.5;
+
+		cv::merge(ycbcr, 3, src);
+	}
 }

@@ -35,5 +35,7 @@ class Decoder : public WaveletTransform
 
 		void denormalizeValues(cv::Mat& src, int channel);
 
+		void convertYCbCrToRGB(cv::Mat & src);
+
 };
 

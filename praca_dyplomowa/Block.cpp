@@ -56,10 +56,10 @@ void Block::saveToFile(ofstream& file)
 	file.write((char*)&order, sizeof(int));
 	for (int i = 0; i < data->size(); ++i)
 	{
-		//unsigned char value = (unsigned char)(data->at(i) * 255);
+		unsigned short value = (unsigned short)(data->at(i) * 65535);
 		//if (data->at(i) > 1 || data->at(i) < 0) std::cout << data->at(i) << '\n';
-		double value = data->at(i);
-		file.write((char*)&value, sizeof(double));
+		//double value = data->at(i);
+		file.write((char*)&value, sizeof(unsigned short));
 	}
 }
 
@@ -73,9 +73,9 @@ void Block::loadToMat(cv::Mat& src, int offsetX, int offsetY, int zoneMaxX, int 
 			{
 				if (i + offsetX < zoneMaxX && j + offsetY < zoneMaxY)
 				{
-					double value;
-					file.read((char*)&value, sizeof(double));
-					src.at<double>(i + offsetX, j + offsetY) = (double)value;// / 255.0;
+					unsigned short value;
+					file.read((char*)&value, sizeof(unsigned short));
+					src.at<double>(i + offsetX, j + offsetY) = (double)value / 65535.0;
 				}
 			}
 		}

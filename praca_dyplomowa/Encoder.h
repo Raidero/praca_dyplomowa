@@ -34,6 +34,7 @@ class Encoder : public WaveletTransform
 		void createFileAndSaveInitialInformation(cv::Mat& src, string filename);
 		void saveData(string fileName);
 		void normalizeValues(cv::Mat & src, int channel);
+		void convertRGBtoYCbCr(cv::Mat & src);
 		void computePropertiesForAllBlocks(cv::Mat & src);
 		void reduceNumberOfBlocksByLevelOfCompression();
 		void sortBlocksByEnergy();

@@ -11,6 +11,7 @@ Decoder::Decoder()
 	minValue = nullptr;
 	maxValue = nullptr;
 	channels = nullptr;
+	numberOfChannels = 1;
 }
 
 
@@ -50,6 +51,7 @@ cv::Mat* Decoder::loadAndDecompress(string fileName)
 
 	cv::Mat* src = new cv::Mat;
 	cv::merge(channels, numberOfChannels, *src);
+	convertYCbCrToRGB(*src);
 
 	return src;
 }
@@ -183,5 +185,20 @@ void Decoder::denormalizeValues(cv::Mat& src, int channel)
 {
 	src *= (maxValue[channel] - minValue[channel]);
 	src += minValue[channel];
+}
 
+void Decoder::convertYCbCrToRGB(cv::Mat& src)
+{
+	if (src.channels() == 3)
+	{
+		cv::Mat bgr[3];
+		cv::Mat ycbcr[3];
+		cv::split(src, ycbcr);
+
+		bgr[0] = ycbcr[0] + 1.773 * (ycbcr[1] - 0.5);
+		bgr[1] = ycbcr[0] - 0.714 * (ycbcr[2] - 0.5) - 0.344 * (ycbcr[1] - 0.5);
+		bgr[2] = ycbcr[0] + 1.403 * (ycbcr[2] - 0.5);
+
+		cv::merge(bgr, 3, src);
+	}
 }
