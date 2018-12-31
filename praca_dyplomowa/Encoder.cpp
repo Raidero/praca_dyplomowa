@@ -8,45 +8,40 @@ Encoder::Encoder()
 	blockSize = 32;
 	blockData = new vector<Block*>();
 	compressionLevel = 50;
-	minValue = nullptr;
-	maxValue = nullptr;
+	numberOfBlocks = 0;
+	bitMap = new vector<bool>();
 }
 
 
 Encoder::~Encoder()
 {
-	if (minValue != nullptr)
-	{
-		delete minValue;
-	}
-	if (maxValue != nullptr)
-	{
-		delete maxValue;
-	}
 	delete blockData;
 }
 
 void Encoder::compressAndSave(cv::Mat& src, string fileName)
 {
 	cv::Mat_<double>* channels = new cv::Mat_<double>[src.channels()];
-	minValue = new double[src.channels()];
-	maxValue = new double[src.channels()];
 	
 	convertRGBtoYCbCr(src);
 	split(src, channels);
-
+	
 	for(int i = 0; i < src.channels(); ++i)
 	{
+		channels[i] -= 0.5;
 		transform(channels[i]);
-		normalizeValues(channels[i], i);
-		computePropertiesForAllBlocks(channels[i], -minValue[i] / (maxValue[i] - minValue[i]));
+		computePropertiesForAllBlocks(channels[i]);
 	}
+	
 	merge(channels, src.channels(), src);
-	sortBlocksByEnergy();
+
+  	sortBlocksByEnergy();
+	numberOfBlocks = blockData->size();
 	reduceNumberOfBlocksByLevelOfCompression();
 
 	sortBlocksByOrder();
 	createFileAndSaveInitialInformation(src, fileName);
+	createBitMap();
+	saveBitMap(fileName);
 	saveData(fileName);
 }
 
@@ -130,15 +125,15 @@ void Encoder::setCompressionLevel(int compressionLevel)
 	}
 }
 
-void Encoder::computePropertiesForAllBlocks(cv::Mat& src, double defaultValue)
+void Encoder::computePropertiesForAllBlocks(cv::Mat& src)
 {
 	for (int i = 0; i < (src.rows >> walvetSeries); i += blockSize)
 	{
 		for (int j = 0; j < (src.cols >> walvetSeries); j += blockSize)
 		{
 			Block* block = new Block();
-			block->setDefaultValue(defaultValue);
 			block->computeProperties(src, i, j, (src.rows >> walvetSeries), (src.cols >> walvetSeries), blockSize, (int)blockData->size());
+			block->setBitShift(walvetSeries);
 			blockData->push_back(block);
 		}
 	}
@@ -155,8 +150,8 @@ void Encoder::computePropertiesForAllBlocks(cv::Mat& src, double defaultValue)
 				for (int j = 0; j < zoneHeight; j += blockSize)
 				{
 					Block* block = new Block();
-					block->setDefaultValue(defaultValue);
 					block->computeProperties(src, i + offsetX, j + offsetY, offsetX + zoneWidth, offsetY + zoneHeight, blockSize, (int)blockData->size());
+					block->setBitShift(level);
 					blockData->push_back(block);
 				}
 			}
@@ -211,13 +206,8 @@ void Encoder::createFileAndSaveInitialInformation(cv::Mat& src, string fileName)
 	file.write((char*)&src.cols, sizeof(int));
 	file.write((char*)&blockSize, sizeof(int));
 	file.write((char*)&walvetSeries, sizeof(int));
+	file.write((char*)&numberOfBlocks, sizeof(int));
 
-	for (int i = 0; i < src.channels(); ++i)
-	{
-		file.write((char*)&minValue[i], sizeof(double));
-		file.write((char*)&maxValue[i], sizeof(double));
-	}
-	
 	file.close();
 }
 
@@ -229,13 +219,6 @@ void Encoder::saveData(string fileName)
 		blockData->at(i)->saveToFile(file);
 	}
 	file.close();
-}
-
-void Encoder::normalizeValues(cv::Mat& src, int channel)
-{
-	cv::minMaxLoc(src, &minValue[channel], &maxValue[channel]);
-	src -= minValue[channel];
-	src /= (maxValue[channel] - minValue[channel]);
 }
 
 void Encoder::convertRGBtoYCbCr(cv::Mat& src)
@@ -252,4 +235,38 @@ void Encoder::convertRGBtoYCbCr(cv::Mat& src)
 
 		cv::merge(ycbcr, 3, src);
 	}
+}
+
+void Encoder::createBitMap()
+{
+	bitMap->resize(numberOfBlocks);
+	for (int i = 0; i < blockData->size(); ++i)
+	{
+		bitMap->at(blockData->at(i)->GetOrder()) = true;
+	}
+}
+
+void Encoder::saveBitMap(string fileName)
+{
+	ofstream file(fileName, ofstream::out | ofstream::binary | ofstream::app);
+	char byte = 0;
+	int i;
+	for (i = 0; i < bitMap->size(); ++i)
+	{
+		if (bitMap->at(i))
+		{
+			byte += 1 << (i % 8);
+		}
+		if (i % 8 == 7) 
+		{
+			file.write((char*)&byte, sizeof(char));
+			byte = 0;
+		}
+	}
+	
+	if (i % 8 != 0)
+	{
+		file.write((char*)&byte, sizeof(char));
+	}
+	file.close();
 }

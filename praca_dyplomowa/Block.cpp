@@ -9,6 +9,7 @@ Block::Block()
 	height = 0;
 	data = new vector<double>();
 	defaultValue = 0;
+	bitShift = 0;
 }
 
 Block::Block(int order, vector<double>* data)
@@ -33,7 +34,7 @@ void Block::computeProperties(cv::Mat& src, int offsetX, int offsetY, int zoneMa
 			if (i + offsetX < zoneMaxX && j + offsetY < zoneMaxY)
 			{
 				const double value = src.at<double>(i + offsetX, j + offsetY);
-				energy += (value - defaultValue)*(value - defaultValue);
+				energy += value*value;
 				data->push_back(value);
 			}
 			else if (i + offsetX == zoneMaxX)
@@ -53,17 +54,24 @@ void Block::computeProperties(cv::Mat& src, int offsetX, int offsetY, int zoneMa
 
 void Block::saveToFile(ofstream& file)
 {
-	file.write((char*)&order, sizeof(int));
 	for (int i = 0; i < data->size(); ++i)
 	{
-		unsigned short value = (unsigned short)(data->at(i) * 65535);
-		//if (data->at(i) > 1 || data->at(i) < 0) std::cout << data->at(i) << '\n';
-		//double value = data->at(i);
-		file.write((char*)&value, sizeof(unsigned short));
+		double doubleValueAfterShift = (data->at(i) + (1 << (bitShift - 1)));
+		if (doubleValueAfterShift < 0)
+		{
+			doubleValueAfterShift = 0;
+		}
+		unsigned short shortValue = (unsigned short)(doubleValueAfterShift * 1024.0);
+		file.write((char*)&shortValue, sizeof(unsigned short));
 	}
 }
 
-void Block::loadToMat(cv::Mat& src, int offsetX, int offsetY, int zoneMaxX, int zoneMaxY, int blockSize, ifstream& file, bool loaded)
+void Block::setBitShift(int shift)
+{
+	bitShift = shift;
+}
+
+void Block::loadToMat(cv::Mat& src, int offsetX, int offsetY, int zoneMaxX, int zoneMaxY, int blockSize, ifstream& file, bool loaded, int shift)
 {
 	if (loaded) 
 	{
@@ -75,7 +83,7 @@ void Block::loadToMat(cv::Mat& src, int offsetX, int offsetY, int zoneMaxX, int 
 				{
 					unsigned short value;
 					file.read((char*)&value, sizeof(unsigned short));
-					src.at<double>(i + offsetX, j + offsetY) = (double)value / 65535.0;
+					src.at<double>(i + offsetX, j + offsetY) = ((double)value / 1024.0) - (1 << (shift - 1));
 				}
 			}
 		}
@@ -88,7 +96,7 @@ void Block::loadToMat(cv::Mat& src, int offsetX, int offsetY, int zoneMaxX, int 
 			{
 				if (i + offsetX < zoneMaxX && j + offsetY < zoneMaxY)
 				{
-					src.at<double>(i + offsetX, j + offsetY) = defaultValue;
+					src.at<double>(i + offsetX, j + offsetY) = 0;
 				}
 			}
 		}
@@ -103,10 +111,4 @@ double Block::GetEnergy() const
 int Block::GetOrder() const
 {
 	return order;
-}
-
-void Block::setDefaultValue(double defaultValue) 
-{ 
-	//unsigned char val = (unsigned char)(defaultValue * 255);
-	this->defaultValue = defaultValue; // (double)val / 255.0;
 }

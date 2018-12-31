@@ -23,21 +23,22 @@ class Encoder : public WaveletTransform
 	//private:
 		int walvetSeries;
 		int blockSize;
-		double* minValue;
-		double* maxValue;
 		int compressionLevel;
 		vector<Block*>* blockData;
+		int numberOfBlocks;
+		vector<bool>* bitMap;
 
 		void transform(cv::Mat& src);
 		void horizontalTransformation(cv::Mat & src, int level);
 		void verticalTransformation(cv::Mat & src, int level);
 		void createFileAndSaveInitialInformation(cv::Mat& src, string filename);
 		void saveData(string fileName);
-		void normalizeValues(cv::Mat & src, int channel);
 		void convertRGBtoYCbCr(cv::Mat & src);
-		void computePropertiesForAllBlocks(cv::Mat & src, double defaultValue);
+		void computePropertiesForAllBlocks(cv::Mat & src);
 		void reduceNumberOfBlocksByLevelOfCompression();
 		void sortBlocksByEnergy();
 		void sortBlocksByOrder();
+		void createBitMap();
+		void saveBitMap(string fileName);
 };
 

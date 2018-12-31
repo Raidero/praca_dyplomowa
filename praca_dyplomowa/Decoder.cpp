@@ -8,23 +8,15 @@ Decoder::Decoder()
 	blockSize = 0;
 	counter = 0;
 	order = -1;
-	minValue = nullptr;
-	maxValue = nullptr;
 	channels = nullptr;
 	numberOfChannels = 1;
+	numberOfBlocks = 0;
+	bitMap = new vector<bool>();
 }
 
 
 Decoder::~Decoder()
 {
-	if (minValue != nullptr)
-	{
-		delete minValue;
-	}
-	if (maxValue != nullptr)
-	{
-		delete maxValue;
-	}
 	if (channels != nullptr)
 	{
 		delete[] channels;
@@ -36,15 +28,14 @@ cv::Mat* Decoder::loadAndDecompress(string fileName)
 	ifstream file(fileName, ofstream::in | ofstream::binary);
 
 	loadInitialInformation(file);
-
+	loadBitMap(file);
 	counter = 0;
-	file.read((char*)&order, sizeof(int));
 
 	for (int i = 0; i < numberOfChannels; ++i)
 	{
 		loadData(channels[i], file, i);
-		denormalizeValues(channels[i], i);
 		inverseTransform(channels[i]);
+		channels[i] += 0.5;
 	}
 
 	file.close();
@@ -114,8 +105,6 @@ void Decoder::loadInitialInformation(ifstream& file)
 	file.read((char*)&rows, sizeof(int));
 	file.read((char*)&cols, sizeof(int));
 
-	minValue = new double[numberOfChannels];
-	maxValue = new double[numberOfChannels];
 	channels = new cv::Mat[numberOfChannels];
 	for (int i = 0; i < numberOfChannels; ++i)
 	{
@@ -124,32 +113,18 @@ void Decoder::loadInitialInformation(ifstream& file)
 
 	file.read((char*)&blockSize, sizeof(int));
 	file.read((char*)&walvetSeries, sizeof(int));
-
-	for (int i = 0; i < numberOfChannels; ++i)
-	{
-		file.read((char*)&minValue[i], sizeof(double));
-		file.read((char*)&maxValue[i], sizeof(double));
-	}
+	file.read((char*)&numberOfBlocks, sizeof(int));
 }
 
 void Decoder::loadData(cv::Mat& src, ifstream& file, int channel)
 {
 	Block block;
-	block.setDefaultValue(-minValue[channel] / (maxValue[channel] - minValue[channel]));
 
 	for (int i = 0; i < (src.rows >> walvetSeries); i += blockSize)
 	{
 		for (int j = 0; j < (src.cols >> walvetSeries); j += blockSize)
 		{
-			if (order == counter)
-			{
-				block.loadToMat(src, i, j, (src.rows >> walvetSeries), (src.cols >> walvetSeries), blockSize, file, true);
-				file.read((char*)&order, sizeof(int));
-			}
-			else
-			{
-				block.loadToMat(src, i, j, (src.rows >> walvetSeries), (src.cols >> walvetSeries), blockSize, file, false);
-			}
+			block.loadToMat(src, i, j, (src.rows >> walvetSeries), (src.cols >> walvetSeries), blockSize, file, bitMap->at(counter), walvetSeries);
 			counter++;
 		}
 	}
@@ -165,26 +140,12 @@ void Decoder::loadData(cv::Mat& src, ifstream& file, int channel)
 			{
 				for (int j = 0; j < zoneHeight; j += blockSize)
 				{
-					if (order == counter)
-					{
-						block.loadToMat(src, i + offsetX, j + offsetY, offsetX + zoneWidth, offsetY + zoneHeight, blockSize, file, true);
-						file.read((char*)&order, sizeof(int));
-					}
-					else
-					{
-						block.loadToMat(src, i + offsetX, j + offsetY, offsetX + zoneWidth, offsetY + zoneHeight, blockSize, file, false);
-					}
+					block.loadToMat(src, i + offsetX, j + offsetY, offsetX + zoneWidth, offsetY + zoneHeight, blockSize, file, bitMap->at(counter), level);
 					counter++;
 				}
 			}
 		}
 	}
-}
-
-void Decoder::denormalizeValues(cv::Mat& src, int channel)
-{
-	src *= (maxValue[channel] - minValue[channel]);
-	src += minValue[channel];
 }
 
 void Decoder::convertYCbCrToRGB(cv::Mat& src)
@@ -200,5 +161,22 @@ void Decoder::convertYCbCrToRGB(cv::Mat& src)
 		bgr[2] = ycbcr[0] + 1.403 * (ycbcr[2] - 0.5);
 
 		cv::merge(bgr, 3, src);
+	}
+}
+
+void Decoder::loadBitMap(ifstream& file)
+{
+	bitMap->resize(numberOfBlocks);
+	char byte = 0;
+	for (int i = 0; i < numberOfBlocks; ++i)
+	{
+		if (i % 8 == 0)
+		{
+			file.read((char*)&byte, sizeof(char));
+		}
+		if (byte & (1 << (i % 8)))
+		{
+			bitMap->at(i) = true;
+		}
 	}
 }

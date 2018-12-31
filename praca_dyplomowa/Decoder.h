@@ -22,8 +22,8 @@ class Decoder : public WaveletTransform
 		int numberOfChannels;
 		int counter; // order counter
 		int order;
-		double* minValue;
-		double* maxValue;
+		int numberOfBlocks;
+		vector<bool>* bitMap;
 		cv::Mat* channels;
 		void inverseTransform(cv::Mat& src);
 		void horizontalInverseTransformation(cv::Mat& src, int level);
@@ -33,9 +33,9 @@ class Decoder : public WaveletTransform
 
 		void loadData(cv::Mat& src, ifstream& file, int channel);
 
-		void denormalizeValues(cv::Mat& src, int channel);
-
 		void convertYCbCrToRGB(cv::Mat & src);
+
+		void loadBitMap(ifstream & file);
 
 };
 

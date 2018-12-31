@@ -15,15 +15,16 @@ class Block
 		Block();
 		Block(int order, vector<double>* data);
 		~Block();
-		void setDefaultValue(double defaultValue);
 		double GetEnergy() const;
 		int GetOrder() const;
 		void computeProperties(cv::Mat& src, int offsetX, int offsetY, int zoneMaxX, int zoneMaxY, int blockSize, int order);
 		void saveToFile(ofstream & file);
-		void loadToMat(cv::Mat& src, int offsetX, int offsetY, int zoneMaxX, int zoneMaxY, int blockSize, ifstream& file, bool loaded);
+		void setBitShift(int shift);
+		void loadToMat(cv::Mat& src, int offsetX, int offsetY, int zoneMaxX, int zoneMaxY, int blockSize, ifstream& file, bool loaded, int shift);
 	private:
 		int order;
 		int width, height;
+		int bitShift;
 		double energy;
 		double defaultValue;
 		vector<double>* data;
