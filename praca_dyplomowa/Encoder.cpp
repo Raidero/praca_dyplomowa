@@ -7,7 +7,7 @@ Encoder::Encoder()
 	walvetSeries = 1;
 	blockSize = 32;
 	blockData = new vector<Block*>();
-	compressionLevel = 50;
+	bitRate = 24;
 	numberOfBlocks = 0;
 	bitMap = new vector<bool>();
 }
@@ -15,7 +15,12 @@ Encoder::Encoder()
 
 Encoder::~Encoder()
 {
+	for (int i = 0; i < blockData->size(); ++i)
+	{
+		delete blockData->at(i);
+	}
 	delete blockData;
+	delete bitMap;
 }
 
 void Encoder::compressAndSave(cv::Mat& src, string fileName)
@@ -33,10 +38,11 @@ void Encoder::compressAndSave(cv::Mat& src, string fileName)
 	}
 	
 	merge(channels, src.channels(), src);
+	delete[] channels;
 
   	sortBlocksByEnergy();
 	numberOfBlocks = blockData->size();
-	reduceNumberOfBlocksByLevelOfCompression();
+	reduceNumberOfBlocksByBitRate(src);
 
 	sortBlocksByOrder();
 	createFileAndSaveInitialInformation(src, fileName);
@@ -113,15 +119,15 @@ void Encoder::setBlockSize(int blockSize)
 	}
 }
 
-void Encoder::setCompressionLevel(int compressionLevel)
+void Encoder::setBitRate(double bitRate)
 {
-	if (compressionLevel >= 0 && compressionLevel < 100)
+	if (bitRate >= 0.0 && bitRate <= 24.0)
 	{
-		this->compressionLevel = compressionLevel;
+		this->bitRate = bitRate;
 	}
 	else
 	{
-		throw std::out_of_range("Compression level must be an integer value between 0 and 99");
+		throw std::out_of_range("Bit rate must be a double value between 0 and 24");
 	}
 }
 
@@ -159,10 +165,18 @@ void Encoder::computePropertiesForAllBlocks(cv::Mat& src)
 	}
 }
 
-void Encoder::reduceNumberOfBlocksByLevelOfCompression()
+void Encoder::reduceNumberOfBlocksByBitRate(cv::Mat& src)
 {
-	double percentageOfRemainingBlocks = 1.0 - ((double)compressionLevel * 0.01);
-	blockData->resize((size_t)(blockData->size()*percentageOfRemainingBlocks));
+	int sizeOfBitMap = (src.total() * src.channels()) / (blockSize*blockSize*8);
+	int blockByteSize = blockSize * blockSize * 2;
+	int headerSize = 30;
+	int allowedSize = bitRate * src.total() / 8;
+	int numberOfBlocks = (allowedSize - headerSize - sizeOfBitMap) / blockByteSize;
+	for (int i = blockData->size() - 1; i > numberOfBlocks; --i)
+	{
+		delete blockData->at(i);
+	}
+	blockData->resize(numberOfBlocks);
 }
 
 void Encoder::sortBlocksByEnergy()
@@ -196,9 +210,6 @@ void Encoder::createFileAndSaveInitialInformation(cv::Mat& src, string fileName)
 	// height 32 bit
 	// block size 32 bit
 	// walvet series 32 bit
-	//
-	// minimal value 64 bit * number of channels
-	// maximal value 64 bit * number of channels
 	int channels = src.channels();
 
 	file.write((char*)&channels, sizeof(int));

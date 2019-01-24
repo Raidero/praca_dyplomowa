@@ -61,7 +61,7 @@ void Block::saveToFile(ofstream& file)
 		{
 			doubleValueAfterShift = 0;
 		}
-		unsigned short shortValue = (unsigned short)(doubleValueAfterShift * 1024.0);
+		unsigned short shortValue = (unsigned short)(doubleValueAfterShift * 1024);
 		file.write((char*)&shortValue, sizeof(unsigned short));
 	}
 }
@@ -83,7 +83,7 @@ void Block::loadToMat(cv::Mat& src, int offsetX, int offsetY, int zoneMaxX, int 
 				{
 					unsigned short value;
 					file.read((char*)&value, sizeof(unsigned short));
-					src.at<double>(i + offsetX, j + offsetY) = ((double)value / 1024.0) - (1 << (shift - 1));
+					src.at<double>(i + offsetX, j + offsetY) = ((double)(value) / 1024) - (1 << (shift - 1));
 				}
 			}
 		}

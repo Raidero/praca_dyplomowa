@@ -37,7 +37,6 @@ cv::Mat* Decoder::loadAndDecompress(string fileName)
 		inverseTransform(channels[i]);
 		channels[i] += 0.5;
 	}
-
 	file.close();
 
 	cv::Mat* src = new cv::Mat;

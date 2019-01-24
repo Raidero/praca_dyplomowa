@@ -17,13 +17,13 @@ class Encoder : public WaveletTransform
 		
 		void setWalvetSeries(int series);
 		void setBlockSize(int blockSize);
-		void setCompressionLevel(int compressionLevel);
+		void setBitRate(double compressionLevel);
 		double GetDataEnergy();
 		
-	//private:
+	private:
 		int walvetSeries;
 		int blockSize;
-		int compressionLevel;
+		double bitRate;
 		vector<Block*>* blockData;
 		int numberOfBlocks;
 		vector<bool>* bitMap;
@@ -35,7 +35,7 @@ class Encoder : public WaveletTransform
 		void saveData(string fileName);
 		void convertRGBtoYCbCr(cv::Mat & src);
 		void computePropertiesForAllBlocks(cv::Mat & src);
-		void reduceNumberOfBlocksByLevelOfCompression();
+		void reduceNumberOfBlocksByBitRate(cv::Mat& src);
 		void sortBlocksByEnergy();
 		void sortBlocksByOrder();
 		void createBitMap();

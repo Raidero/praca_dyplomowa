@@ -16,7 +16,7 @@ class Decoder : public WaveletTransform
 
 		cv::Mat* loadAndDecompress(string fileName);
 		
-	//private:
+	private:
 		int walvetSeries;
 		int blockSize;
 		int numberOfChannels;
